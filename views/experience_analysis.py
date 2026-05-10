@@ -21,7 +21,7 @@ def load_data():
 
 
 def show():
-    st.title("⭐ Experience Analysis")
+    st.markdown("<h1><i class='bi bi-star'></i> Experience Analysis</h1>", unsafe_allow_html=True)
     st.markdown("Explore customer satisfaction and recommendation patterns across different segments.")
 
     df = load_data()
@@ -41,7 +41,7 @@ def show():
     st.divider()
 
     # ── Section 1: Satisfaction & Recommendation by Segment ──
-    st.subheader("📊 Satisfaction & Recommendation by Segment")
+    st.markdown("### <i class='bi bi-graph-up'></i> Satisfaction & Recommendation by Segment", unsafe_allow_html=True)
 
     segment_col = st.selectbox(
         "Segment by:",
@@ -83,36 +83,8 @@ def show():
 
     st.divider()
 
-    # ── Section 2: Satisfaction vs. Total Spend (Scatter) ──
-    st.subheader("💰 Spending vs. Experience Scores")
-    st.markdown("Does higher spending correlate with better satisfaction or recommendation?")
-
-    score_choice = st.radio(
-        "Score to plot:",
-        ["Satisfaction_Score", "Recommendation_Likelihood"],
-        horizontal=True,
-        key="exp_score_choice"
-    )
-
-    fig_scatter = px.scatter(
-        df, x='Total_Spend', y=score_choice,
-        color='Seating_Region',
-        size='Num_Tickets',
-        hover_data=['Customer_ID', 'Country', 'Age'],
-        title=f'{score_choice.replace("_", " ")} vs. Total Spend',
-        opacity=0.6,
-        color_discrete_sequence=px.colors.qualitative.Set2
-    )
-    fig_scatter.update_layout(
-        xaxis_title='Total Spend (USD)',
-        yaxis_title=score_choice.replace('_', ' ')
-    )
-    st.plotly_chart(fig_scatter, width="stretch")
-
-    st.divider()
-
     # ── Section 3: Repeat vs. First-Time Visitor Comparison ──
-    st.subheader("🔄 Repeat vs. First-Time Visitor Experience")
+    st.markdown("### <i class='bi bi-arrow-repeat'></i> Repeat vs. First-Time Visitor Experience", unsafe_allow_html=True)
 
     repeat_stats = df.groupby('Repeat_Label').agg(
         Avg_Satisfaction=('Satisfaction_Score', 'mean'),
@@ -131,7 +103,7 @@ def show():
             name='Satisfaction',
             x=repeat_stats['Repeat_Label'],
             y=repeat_stats['Avg_Satisfaction'],
-            marker_color='#2ecc71',
+            marker_color='#06D6A0',
             text=repeat_stats['Avg_Satisfaction'].round(2)
         ))
         fig_repeat.add_trace(go.Bar(
@@ -168,7 +140,7 @@ def show():
     st.divider()
 
     # ── Section 4: Satisfaction Distribution ──
-    st.subheader("📈 Score Distributions")
+    st.markdown("### <i class='bi bi-bar-chart-line'></i> Score Distributions", unsafe_allow_html=True)
 
     col_d1, col_d2 = st.columns(2)
     with col_d1:
@@ -177,7 +149,7 @@ def show():
             color='Repeat_Label',
             barmode='overlay',
             title='Satisfaction Score Distribution',
-            color_discrete_map={'Repeat': '#2ecc71', 'First-Time': '#e74c3c'},
+            color_discrete_map={'Repeat': '#06D6A0', 'First-Time': '#E63946'},
             opacity=0.7
         )
         fig_hist_sat.update_layout(xaxis_title='Satisfaction Score', yaxis_title='Count')
@@ -189,7 +161,7 @@ def show():
             color='Repeat_Label',
             barmode='overlay',
             title='Recommendation Likelihood Distribution',
-            color_discrete_map={'Repeat': '#9b59b6', 'First-Time': '#e67e22'},
+            color_discrete_map={'Repeat': '#118AB2', 'First-Time': '#FFD166'},
             opacity=0.7
         )
         fig_hist_rec.update_layout(xaxis_title='Recommendation Likelihood', yaxis_title='Count')
@@ -198,7 +170,7 @@ def show():
     st.divider()
 
     # ── Section 5: Heatmap – Satisfaction by Country & Seating Region ──
-    st.subheader("🗺️ Satisfaction Heatmap: Country × Seating Region")
+    st.markdown("### <i class='bi bi-grid-3x3'></i> Satisfaction Heatmap: Country × Seating Region", unsafe_allow_html=True)
 
     pivot = df.pivot_table(
         values='Satisfaction_Score',

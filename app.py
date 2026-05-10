@@ -1,13 +1,14 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
 
-from views import overview, advance_analysis, more_plots, experience_analysis, time_analysis
+from views import overview, revenue_analysis, customer_analysis, time_analysis
 
 st.set_page_config(page_title="Venue Analytics Dashboard", layout="wide")
 
 # ── Inject custom CSS based on index.css design tokens ──
 st.markdown("""
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
     /* ── Typography (--font-sans: DM Sans) ── */
     html, body, [class*="css"] {
@@ -60,10 +61,30 @@ st.markdown("""
 
     /* ── Inputs (selectbox, text input) ── */
     [data-testid="stSelectbox"] > div > div,
-    [data-testid="stTextInput"] > div > div > input {
+    [data-testid="stTextInput"] > div > div > input,
+    [data-testid="stNumberInput"] > div > div > input,
+    [data-testid="stTextArea"] > div > div > textarea,
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"] > div {
         border: 2px solid #000 !important;
         border-radius: 0px !important;
-        box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.8);
+        box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.8) !important;
+    }
+
+    /* ── Table / Dataframe specific ── */
+    [data-testid="stDataFrame"], [data-testid="stTable"] {
+        border-radius: 0px !important;
+    }
+    [data-testid="stDataFrame"] > div {
+        border-radius: 0px !important;
+    }
+
+    /* ── Expander (Filters container) ── */
+    [data-testid="stExpander"], [data-testid="stExpander"] > details {
+        border-radius: 0px !important;
+    }
+    [data-testid="stExpander"] summary {
+        border-radius: 0px !important;
     }
 
     /* ── Dividers ── */
@@ -92,8 +113,8 @@ st.markdown("""
 # ── Navigation (themed to match index.css primary/accent) ──
 selected = option_menu(
     menu_title=None,
-    options=["Overview", "Revenue", "Customers", "Experience", "Time Analysis"],
-    icons=["house", "currency-dollar", "people", "star", "calendar3"],
+    options=["Overview", "Revenue","Customer Analysis",  "Time Analysis"],
+    icons=["house", "currency-dollar", "people", "calendar3"],
     menu_icon="cast",
     default_index=0,
     orientation="horizontal",
@@ -121,10 +142,10 @@ selected = option_menu(
             "text-transform": "uppercase",
             "letter-spacing": "0.05em",
             "border-radius": "0px",
-            "--hover-color": "#222",
+            "--hover-color": "#E63A46",
         },
         "nav-link-selected": {
-            "background-color": "#FFD166",
+            "background-color": "#118AB2",
             "border-radius": "0px",
             "font-weight": "700",
         },
@@ -134,10 +155,8 @@ selected = option_menu(
 if selected == "Overview":
     overview.show()
 elif selected == "Revenue":
-    advance_analysis.show()
-elif selected == "Customers":
-    more_plots.show()
-elif selected == "Experience":
-    experience_analysis.show()
+    revenue_analysis.show()
+elif selected == "Customer Analysis":
+    customer_analysis.show()
 elif selected == "Time Analysis":
     time_analysis.show()

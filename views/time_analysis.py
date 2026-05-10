@@ -22,7 +22,7 @@ def load_data():
 
 
 def show():
-    st.title("📅 Time-Based Analysis")
+    st.markdown("<h1><i class='bi bi-calendar-event'></i> Time-Based Analysis</h1>", unsafe_allow_html=True)
     st.markdown("Explore revenue trends, visit patterns, and customer behavior over time.")
 
     df = load_data()
@@ -52,115 +52,110 @@ def show():
 
     st.divider()
 
-    # ── Section 1: Monthly Revenue Trend ──
-    st.subheader("📈 Monthly Revenue Trend")
+    # ── Row 1: Monthly Revenue Trends ──
+    col_a, col_b = st.columns(2)
 
-    fig_rev = go.Figure()
-    fig_rev.add_trace(go.Scatter(
-        x=monthly['Month_dt'], y=monthly['Total_Revenue'],
-        mode='lines+markers', name='Total Revenue',
-        line=dict(color='#3498db', width=3),
-        marker=dict(size=8)
-    ))
-    fig_rev.add_trace(go.Scatter(
-        x=monthly['Month_dt'], y=monthly['Ticket_Revenue'],
-        mode='lines+markers', name='Ticket Revenue',
-        line=dict(color='#2ecc71', width=2, dash='dot'),
-        marker=dict(size=6)
-    ))
-    fig_rev.add_trace(go.Scatter(
-        x=monthly['Month_dt'], y=monthly['Merch_Revenue'],
-        mode='lines+markers', name='Merchandise Revenue',
-        line=dict(color='#e67e22', width=2, dash='dash'),
-        marker=dict(size=6)
-    ))
-    fig_rev.add_trace(go.Scatter(
-        x=monthly['Month_dt'], y=monthly['Drink_Revenue'],
-        mode='lines+markers', name='Drink Revenue',
-        line=dict(color='#9b59b6', width=2, dash='dashdot'),
-        marker=dict(size=6)
-    ))
-    fig_rev.update_layout(
-        title='Monthly Revenue Breakdown',
-        xaxis_title='Month',
-        yaxis_title='Revenue (USD)',
-        hovermode='x unified',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5)
-    )
-    st.plotly_chart(fig_rev, width="stretch")
+    with col_a:
+        st.markdown("### <i class='bi bi-graph-up-arrow'></i> Monthly Revenue Trend", unsafe_allow_html=True)
+        fig_rev = go.Figure()
+        fig_rev.add_trace(go.Scatter(
+            x=monthly['Month_dt'], y=monthly['Total_Revenue'],
+            mode='lines+markers', name='Total Revenue',
+            line=dict(color='#E63946', width=3),
+            marker=dict(size=8)
+        ))
+        fig_rev.add_trace(go.Scatter(
+            x=monthly['Month_dt'], y=monthly['Ticket_Revenue'],
+            mode='lines+markers', name='Ticket Revenue',
+            line=dict(color='#06D6A0', width=2, dash='dot'),
+            marker=dict(size=6)
+        ))
+        fig_rev.add_trace(go.Scatter(
+            x=monthly['Month_dt'], y=monthly['Merch_Revenue'],
+            mode='lines+markers', name='Merchandise Revenue',
+            line=dict(color='#FFD166', width=2, dash='dash'),
+            marker=dict(size=6)
+        ))
+        fig_rev.add_trace(go.Scatter(
+            x=monthly['Month_dt'], y=monthly['Drink_Revenue'],
+            mode='lines+markers', name='Drink Revenue',
+            line=dict(color='#118AB2', width=2, dash='dashdot'),
+            marker=dict(size=6)
+        ))
+        fig_rev.update_layout(
+            title='Monthly Revenue Breakdown',
+            xaxis_title='Month',
+            yaxis_title='Revenue (USD)',
+            hovermode='x unified',
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, title_text='')
+        )
+        st.plotly_chart(fig_rev, width="stretch")
+
+    with col_b:
+        st.markdown("### <i class='bi bi-people'></i> Monthly Visitor Composition", unsafe_allow_html=True)
+
+        monthly['First_Time_Visitors'] = monthly['Visitors'] - monthly['Repeat_Visitors']
+        monthly['Repeat_Rate'] = (monthly['Repeat_Visitors'] / monthly['Visitors'] * 100).round(1)
+
+        fig_visitors = go.Figure()
+        # First-Time Visitors (Base)
+        fig_visitors.add_trace(go.Bar(
+            x=monthly['Month_dt'], y=monthly['First_Time_Visitors'],
+            name='First-Time Visitors',
+            marker_color='#E63946',
+            text=monthly['First_Time_Visitors'],
+            textposition='inside'
+        ))
+        # Repeat Visitors (Stacked)
+        fig_visitors.add_trace(go.Bar(
+            x=monthly['Month_dt'], y=monthly['Repeat_Visitors'],
+            name='Repeat Visitors',
+            marker_color='#06D6A0',
+            text=monthly['Repeat_Visitors'],
+            textposition='inside'
+        ))
+
+        fig_visitors.update_layout(
+            barmode='stack',
+            title='Monthly Visitor Volume (Repeat vs. First-Time)',
+            xaxis_title='Month',
+            yaxis_title='Number of Visitors',
+            hovermode='x unified',
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, title_text='')
+        )
+        st.plotly_chart(fig_visitors, width="stretch")
+        st.caption(f"Average Monthly Repeat Rate: {monthly['Repeat_Rate'].mean():.1f}%")
+        
 
     st.divider()
 
-    # ── Section 2: Revenue Composition (Stacked Area) ──
-    st.subheader("🧩 Revenue Composition Over Time")
+    st.markdown("### <i class='bi bi-ticket-perforated'></i> Monthly Revenue by Seating Region", unsafe_allow_html=True)
+    monthly_region = df.groupby([df['Visit_Date'].dt.to_period('M').dt.to_timestamp(), 'Seating_Region']).agg(
+        Revenue=('Total_Revenue', 'sum')
+    ).reset_index()
+    monthly_region.columns = ['Month', 'Seating_Region', 'Revenue']
 
-    fig_area = go.Figure()
-    fig_area.add_trace(go.Scatter(
-        x=monthly['Month_dt'], y=monthly['Ticket_Revenue'],
-        mode='lines', name='Ticket Revenue',
-        stackgroup='one', line=dict(color='#3498db')
-    ))
-    fig_area.add_trace(go.Scatter(
-        x=monthly['Month_dt'], y=monthly['Merch_Revenue'],
-        mode='lines', name='Merchandise Revenue',
-        stackgroup='one', line=dict(color='#e67e22')
-    ))
-    fig_area.add_trace(go.Scatter(
-        x=monthly['Month_dt'], y=monthly['Drink_Revenue'],
-        mode='lines', name='Drink Revenue',
-        stackgroup='one', line=dict(color='#9b59b6')
-    ))
-    fig_area.update_layout(
-        title='Revenue Composition (Stacked)',
+    region_order = ['Economy', 'High Economy', 'Premium', 'VIP']
+    fig_region = px.line(
+        monthly_region, x='Month', y='Revenue',
+        color='Seating_Region',
+        markers=True,
+        title='Revenue Over Time by Seating Region',
+        category_orders={'Seating_Region': region_order},
+        color_discrete_sequence=['#073B4C', '#118AB2', '#FFD166', '#E63946']
+    )
+    fig_region.update_layout(
         xaxis_title='Month',
         yaxis_title='Revenue (USD)',
         hovermode='x unified',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5)
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, title_text='')
     )
-    st.plotly_chart(fig_area, width="stretch")
-
-    st.divider()
-
-    # ── Section 3: Monthly Visitor Count & Repeat Rate ──
-    st.subheader("👥 Monthly Visitors & Repeat Visit Rate")
-
-    monthly['Repeat_Rate'] = (monthly['Repeat_Visitors'] / monthly['Visitors'] * 100).round(1)
-
-    fig_visitors = go.Figure()
-    fig_visitors.add_trace(go.Bar(
-        x=monthly['Month_dt'], y=monthly['Visitors'],
-        name='Total Visitors',
-        marker_color='#3498db',
-        text=monthly['Visitors'],
-        textposition='outside'
-    ))
-    fig_visitors.add_trace(go.Scatter(
-        x=monthly['Month_dt'], y=monthly['Repeat_Rate'],
-        name='Repeat Rate (%)',
-        yaxis='y2',
-        mode='lines+markers',
-        line=dict(color='#e74c3c', width=3),
-        marker=dict(size=8)
-    ))
-    fig_visitors.update_layout(
-        title='Monthly Visitors with Repeat Rate Overlay',
-        xaxis_title='Month',
-        yaxis=dict(title='Number of Visitors'),
-        yaxis2=dict(
-            title='Repeat Rate (%)',
-            overlaying='y',
-            side='right',
-            range=[0, 100]
-        ),
-        hovermode='x unified',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5)
-    )
-    st.plotly_chart(fig_visitors, width="stretch")
+    st.plotly_chart(fig_region, width="stretch")
 
     st.divider()
 
     # ── Section 4: Day-of-Week Patterns ──
-    st.subheader("📆 Visit & Revenue Patterns by Day of Week")
+    st.markdown("### <i class='bi bi-calendar-week'></i> Visit & Revenue Patterns by Day of Week", unsafe_allow_html=True)
 
     day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     day_stats = df.groupby('Day_of_Week').agg(
@@ -194,62 +189,3 @@ def show():
         fig_day_rev.update_layout(showlegend=False, yaxis_title='Avg Revenue (USD)')
         fig_day_rev.update_traces(textposition='outside')
         st.plotly_chart(fig_day_rev, width="stretch")
-
-    st.divider()
-
-    # ── Section 5: Monthly Revenue by Seating Region ──
-    st.subheader("🎭 Monthly Revenue by Seating Region")
-
-    monthly_region = df.groupby([df['Visit_Date'].dt.to_period('M').dt.to_timestamp(), 'Seating_Region']).agg(
-        Revenue=('Total_Revenue', 'sum')
-    ).reset_index()
-    monthly_region.columns = ['Month', 'Seating_Region', 'Revenue']
-
-    region_order = ['Economy', 'High Economy', 'Premium', 'VIP']
-    fig_region = px.line(
-        monthly_region, x='Month', y='Revenue',
-        color='Seating_Region',
-        markers=True,
-        title='Revenue Over Time by Seating Region',
-        category_orders={'Seating_Region': region_order},
-        color_discrete_sequence=['#e74c3c', '#e67e22', '#3498db', '#2ecc71']
-    )
-    fig_region.update_layout(
-        xaxis_title='Month',
-        yaxis_title='Revenue (USD)',
-        hovermode='x unified',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5)
-    )
-    st.plotly_chart(fig_region, width="stretch")
-
-    st.divider()
-
-    # ── Section 6: Monthly Satisfaction Trend ──
-    st.subheader("😊 Monthly Satisfaction & Recommendation Trend")
-
-    fig_sat_trend = go.Figure()
-    fig_sat_trend.add_trace(go.Scatter(
-        x=monthly['Month_dt'], y=monthly['Avg_Satisfaction'].round(2),
-        mode='lines+markers', name='Avg Satisfaction',
-        line=dict(color='#2ecc71', width=3),
-        marker=dict(size=8)
-    ))
-
-    monthly_rec = df.groupby('Month_dt')['Recommendation_Likelihood'].mean().reset_index()
-    monthly_rec = monthly_rec.sort_values('Month_dt')
-
-    fig_sat_trend.add_trace(go.Scatter(
-        x=monthly_rec['Month_dt'], y=monthly_rec['Recommendation_Likelihood'].round(2),
-        mode='lines+markers', name='Avg Recommendation',
-        line=dict(color='#9b59b6', width=3),
-        marker=dict(size=8)
-    ))
-    fig_sat_trend.update_layout(
-        title='Monthly Average Satisfaction & Recommendation',
-        xaxis_title='Month',
-        yaxis_title='Score',
-        yaxis_range=[0, 10],
-        hovermode='x unified',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5)
-    )
-    st.plotly_chart(fig_sat_trend, width="stretch")

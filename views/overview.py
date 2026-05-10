@@ -12,18 +12,27 @@ def load_data():
     df['Visit_Date'] = pd.to_datetime(df['Visit_Date'])
     df['Ticket_Revenue'] = df['Ticket_Price'] * df['Num_Tickets']
     df['Total_Revenue'] = df['Ticket_Revenue'] + df['Merchandise_Spend'] + df['Drink_Spend']
+    df['Month_dt'] = df['Visit_Date'].dt.to_period('M').dt.to_timestamp()
     df['Repeat_Label'] = df['Repeat_Visit'].map({1: 'Repeat', 0: 'First-Time'})
     return df
 
 
 def show():
-    st.title("📊 Executive Overview")
+    st.markdown("<h1><i class='bi bi-speedometer2'></i> Executive Overview</h1>", unsafe_allow_html=True)
     st.markdown("A high-level summary of venue performance, revenue, and customer experience.")
 
     df = load_data()
+    
+    # Calculate monthly trends for the overview chart
+    monthly = df.groupby('Month_dt').agg(
+        Total_Revenue=('Total_Revenue', 'sum'),
+        Ticket_Revenue=('Ticket_Revenue', 'sum'),
+        Merch_Revenue=('Merchandise_Spend', 'sum'),
+        Drink_Revenue=('Drink_Spend', 'sum')
+    ).reset_index().sort_values('Month_dt')
 
     # ── Row 1: Core KPIs (from challenge C. Measures and KPIs) ──
-    st.subheader("🔑 Key Performance Indicators")
+    st.markdown("### <i class='bi bi-key'></i> Key Performance Indicators", unsafe_allow_html=True)
     k1, k2, k3, k4 = st.columns(4)
 
     total_ticket_rev = df['Ticket_Revenue'].sum()
@@ -54,7 +63,7 @@ def show():
     col_left, col_right = st.columns(2)
 
     with col_left:
-        st.subheader("💰 Revenue Breakdown")
+        st.markdown("### <i class='bi bi-cash-stack'></i> Revenue Breakdown", unsafe_allow_html=True)
         rev_data = pd.DataFrame({
             'Category': ['Ticket Revenue', 'Merchandise Revenue', 'Drink Revenue'],
             'Amount': [total_ticket_rev, total_merch_rev, total_drink_rev]
@@ -62,14 +71,14 @@ def show():
         fig_donut = px.pie(
             rev_data, values='Amount', names='Category',
             hole=0.45,
-            color_discrete_sequence=['#3498db', '#e67e22', '#9b59b6']
+            color_discrete_sequence=['#E63946', '#FFD166', '#118AB2']
         )
         fig_donut.update_traces(textposition='inside', textinfo='percent+label')
         fig_donut.update_layout(showlegend=False, margin=dict(t=20, b=20))
         st.plotly_chart(fig_donut, width="stretch")
 
     with col_right:
-        st.subheader("🌍 Revenue by Country")
+        st.markdown("### <i class='bi bi-globe'></i> Revenue by Country", unsafe_allow_html=True)
         country_rev = df.groupby('Country')['Total_Revenue'].sum().sort_values(ascending=True).reset_index()
         fig_country = px.bar(
             country_rev, x='Total_Revenue', y='Country',
@@ -84,41 +93,47 @@ def show():
 
     st.divider()
 
-    # ── Row 3: Revenue by Seating Region + Repeat vs First-Time ──
-    col_a, col_b = st.columns(2)
-
-    with col_a:
-        st.subheader("🎭 Revenue by Seating Region")
-        region_order = ['Economy', 'High Economy', 'Premium', 'VIP']
-        region_rev = df.groupby('Seating_Region')['Total_Revenue'].sum().reindex(region_order).reset_index()
-        fig_region = px.bar(
-            region_rev, x='Seating_Region', y='Total_Revenue',
-            color='Seating_Region',
-            color_discrete_sequence=['#e74c3c', '#e67e22', '#3498db', '#2ecc71'],
-            text=region_rev['Total_Revenue'].apply(lambda x: f"${x:,.0f}")
-        )
-        fig_region.update_layout(showlegend=False, xaxis_title='Seating Region', yaxis_title='Revenue (USD)')
-        fig_region.update_traces(textposition='outside')
-        st.plotly_chart(fig_region, width="stretch")
-
-    with col_b:
-        st.subheader("🔄 Repeat vs First-Time Visitors")
-        repeat_counts = df['Repeat_Label'].value_counts().reset_index()
-        repeat_counts.columns = ['Visitor Type', 'Count']
-        fig_repeat = px.pie(
-            repeat_counts, values='Count', names='Visitor Type',
-            hole=0.4,
-            color_discrete_map={'Repeat': '#2ecc71', 'First-Time': '#e74c3c'}
-        )
-        fig_repeat.update_traces(textposition='inside', textinfo='percent+label+value')
-        fig_repeat.update_layout(showlegend=False, margin=dict(t=20, b=20))
-        st.plotly_chart(fig_repeat, width="stretch")
+    st.markdown("### <i class='bi bi-graph-up-arrow'></i> Monthly Revenue Trend", unsafe_allow_html=True)
+    fig_rev = go.Figure()
+    fig_rev.add_trace(go.Scatter(
+        x=monthly['Month_dt'], y=monthly['Total_Revenue'],
+        mode='lines+markers', name='Total Revenue',
+        line=dict(color='#E63946', width=3),
+        marker=dict(size=8)
+    ))
+    fig_rev.add_trace(go.Scatter(
+        x=monthly['Month_dt'], y=monthly['Ticket_Revenue'],
+        mode='lines+markers', name='Ticket Revenue',
+        line=dict(color='#06D6A0', width=2, dash='dot'),
+        marker=dict(size=6)
+    ))
+    fig_rev.add_trace(go.Scatter(
+        x=monthly['Month_dt'], y=monthly['Merch_Revenue'],
+        mode='lines+markers', name='Merchandise Revenue',
+        line=dict(color='#FFD166', width=2, dash='dash'),
+        marker=dict(size=6)
+    ))
+    fig_rev.add_trace(go.Scatter(
+        x=monthly['Month_dt'], y=monthly['Drink_Revenue'],
+        mode='lines+markers', name='Drink Revenue',
+        line=dict(color='#118AB2', width=2, dash='dashdot'),
+        marker=dict(size=6)
+    ))
+    fig_rev.update_layout(
+        title='Monthly Revenue Breakdown',
+        xaxis_title='Month',
+        yaxis_title='Revenue (USD)',
+        hovermode='x unified',
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, title_text='')
+    )
+    st.plotly_chart(fig_rev, width="stretch")
 
     st.divider()
 
-    # ── Row 4: Searchable Data Table ──
-    st.subheader("📋 Transactions")
-    search_query = st.text_input("🔍 Search across all columns", placeholder="e.g. CUST_0001, VIP, Australia...", key="overview_search")
+
+    # ── Row 3: Searchable Data Table ──
+    st.markdown("### <i class='bi bi-list-ul'></i> Transactions", unsafe_allow_html=True)
+    search_query = st.text_input("Search across all columns", placeholder="e.g. CUST_0001, VIP, Australia...", key="overview_search")
 
     table_data = df.sort_values(by="Visit_Date", ascending=False)
     if search_query:
