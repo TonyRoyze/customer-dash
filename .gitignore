@@ -1,0 +1,9 @@
+
+
+# Ignore Python environments and cache
+.ipynb_checkpoints/
+__pycache__/
+.env
+.DS_Store
+
+.vscode/

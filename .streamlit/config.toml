@@ -1,0 +1,11 @@
+[theme]
+# Primary color from index.css --primary (warm red-orange)
+primaryColor = "#E63946"
+# Background from index.css --background (white)
+backgroundColor = "#FFFFFF"
+# Card/secondary background from index.css --muted
+secondaryBackgroundColor = "#F0F0F0"
+# Foreground from index.css --foreground (black)
+textColor = "#000000"
+# Font from index.css --font-sans
+font = "sans serif"
