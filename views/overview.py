@@ -117,25 +117,36 @@ def show():
     renderer = StreamlitRenderer(df)
     renderer.explorer()
 
-    st.divider()
-
     # ── Advanced Insights (Shadcn Alert/Card-like) ──
     if st.session_state.get('advanced_mode'):
         st.subheader("🔬 Advanced Statistical Insights")
+        from scipy import stats
         
         col_s1, col_s2 = st.columns(2)
+        
+        # 1. Correlation Test: Satisfaction vs. Spend
+        corr, p_val = stats.pearsonr(df['Satisfaction_Score'], df['Total_Revenue'])
+        sig_text = "statistically significant" if p_val < 0.05 else "not statistically significant"
+        
         with col_s1:
             ui.card(
-                title="Revenue Concentration",
-                content="The top 20% of customers contribute to 45% of total revenue, suggesting a healthy but tier-dependent ecosystem.",
-                description="Pareto Analysis",
+                title="Satisfaction-Spend Correlation",
+                content=f"Pearson Correlation: **{corr:.3f}** (p={p_val:.4f}). This relationship is **{sig_text}**.",
+                description="Analysis of how customer feedback relates to monetary value.",
                 key="c1"
             ).render()
+            
+        # 2. T-Test: Repeat vs First-Time Spend
+        repeat_spend = df[df['Repeat_Visit'] == 1]['Total_Revenue']
+        first_spend = df[df['Repeat_Visit'] == 0]['Total_Revenue']
+        t_stat, t_p = stats.ttest_ind(repeat_spend, first_spend)
+        t_sig = "significant difference" if t_p < 0.05 else "no significant difference"
+        
         with col_s2:
             ui.card(
-                title="Satisfaction Correlation",
-                content="Strong positive correlation (0.82) between Drink Spend and Satisfaction Score in Premium seating.",
-                description="Correlation Insight",
+                title="Loyalty Spend Variance",
+                content=f"T-Statistic: **{t_stat:.2f}** (p={t_p:.4f}). There is **{t_sig}** in spending between repeat and first-time guests.",
+                description="Comparing the economic impact of customer retention.",
                 key="c2"
             ).render()
 

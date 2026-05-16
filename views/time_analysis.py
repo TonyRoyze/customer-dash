@@ -109,19 +109,29 @@ def show():
 
     if st.session_state.get('advanced_mode'):
         st.divider()
-        st.subheader("🔬 Advanced Temporal Insights")
+        st.subheader("🔬 Advanced Temporal Statistics")
+        from scipy import stats
+        
+        # T-Test: Weekend vs. Weekday Spend
+        weekend_days = ['Saturday', 'Sunday']
+        weekend_spend = df[df['Day_of_Week'].isin(weekend_days)]['Total_Revenue']
+        weekday_spend = df[~df['Day_of_Week'].isin(weekend_days)]['Total_Revenue']
+        t_stat, p_val = stats.ttest_ind(weekend_spend, weekday_spend)
+        sig_text = "significant" if p_val < 0.05 else "not significant"
+        
         col_adv1, col_adv2 = st.columns(2)
         with col_adv1:
             ui.card(
-                title="Weekend Surge Analysis",
-                content="Weekend revenue is 2.8x higher than weekday revenue, primarily driven by drink spend in VIP sections.",
-                description="Seasonality Insight",
+                title="Weekend Surge (T-Test)",
+                content=f"T-Stat: **{t_stat:.2f}** (p={p_val:.4f}). The revenue difference between weekends and weekdays is **{sig_text}**.",
+                description="Comparing operational performance by day category.",
                 key="time_adv_1"
             ).render()
         with col_adv2:
+            growth = ((monthly['Total_Revenue'].iloc[-1] / monthly['Total_Revenue'].iloc[0]) - 1) * 100
             ui.card(
-                title="Cohort Retention Trend",
-                content="Customer cohorts from January have a 15% higher retention rate compared to cohorts from later months.",
-                description="Retention Analysis",
+                title="Overall Period Growth",
+                content=f"Total revenue has grown by **{growth:.1f}%** from the first month to the last recorded month in the dataset.",
+                description="Longitudinal Trend Analysis",
                 key="time_adv_2"
             ).render()

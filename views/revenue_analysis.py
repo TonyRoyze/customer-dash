@@ -118,20 +118,28 @@ def show():
 
     if st.session_state.get('advanced_mode'):
         st.divider()
-        st.subheader("🔬 Advanced Revenue Insights")
+        st.subheader("🔬 Advanced Revenue Statistics")
+        from scipy import stats
+        
+        # ANOVA: Total Revenue by Seating Region
+        regions = filtered['Seating_Region'].unique()
+        groups = [filtered[filtered['Seating_Region'] == r]['Total_Revenue'] for r in regions]
+        f_stat, p_val = stats.f_oneway(*groups)
+        sig_text = "significant" if p_val < 0.05 else "not significant"
+        
         col_adv1, col_adv2 = st.columns(2)
         with col_adv1:
             ui.card(
-                title="Profitability Factor",
-                content="Merchandise and Drink sales have a 3.4x higher margin than ticket sales, despite representing 40% of volume.",
-                description="Ancillary Revenue Analysis",
+                title="Regional Spend ANOVA",
+                content=f"F-Statistic: **{f_stat:.2f}** (p={p_val:.4e}). The variance in spend between seating regions is **{sig_text}**.",
+                description="Testing if seating tier pricing affects total spend significantly.",
                 key="rev_adv_1"
             ).render()
         with col_adv2:
             ui.card(
-                title="Customer Lifetime Projection",
-                content="Repeat visitors spend 22% more on merchandise per visit than first-time attendees.",
-                description="Behavioral Economics",
+                title="Market Concentration",
+                content=f"The filtered dataset contains {len(filtered['Country'].unique())} countries. Top 3 markets contribute { (filtered.groupby('Country')['Total_Revenue'].sum().nlargest(3).sum() / filtered['Total_Revenue'].sum() * 100):.1f}% of filtered revenue.",
+                description="Market Share Analysis",
                 key="rev_adv_2"
             ).render()
         
