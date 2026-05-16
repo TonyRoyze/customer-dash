@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 import os
+from pygwalker.api.streamlit import StreamlitRenderer
 
 DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'raw.csv')
 
@@ -246,3 +247,15 @@ def show():
     )
     fig_heat.update_layout(xaxis_title='Seating Region', yaxis_title='Country')
     st.plotly_chart(fig_heat, width="stretch")
+
+    st.divider()
+
+    # ── Pygwalker Experience Explorer ──
+    st.subheader("⭐ Experience Data Explorer")
+    st.markdown("Use the explorer below to analyze satisfaction and recommendation patterns dynamically.")
+    
+    # Filter for experience-relevant columns
+    exp_cols = ['Satisfaction_Score', 'Recommendation_Likelihood', 'Seating_Region', 'Gender', 
+                'Country', 'Age_Group', 'Repeat_Label', 'Total_Spend']
+    renderer = StreamlitRenderer(df[exp_cols])
+    renderer.explorer()

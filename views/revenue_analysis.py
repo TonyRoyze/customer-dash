@@ -68,16 +68,23 @@ def show():
         if st.session_state.get('advanced_mode'):
             from scipy import stats
             import numpy as np
+            
+            # Time Series Metrics
+            monthly_rev['Total'] = monthly_rev['Ticket'] + monthly_rev['Merchandise'] + monthly_rev['Drink']
+            monthly_rev['MoM_Growth'] = monthly_rev['Total'].pct_change() * 100
+            avg_mom = monthly_rev['MoM_Growth'].mean()
+            volatility = (monthly_rev['Total'].std() / monthly_rev['Total'].mean()) * 100
+            
             # Trend Test
             x_vals = np.arange(len(monthly_rev))
-            y_vals = monthly_rev['Ticket'] + monthly_rev['Merchandise'] + monthly_rev['Drink']
+            y_vals = monthly_rev['Total']
             slope, intercept, r_val, p_val, stderr = stats.linregress(x_vals, y_vals)
-            reg_sig = "✅ Significant Trend" if p_val < 0.05 else "❌ No Significant Trend"
+            reg_sig = "✅ Significant" if p_val < 0.05 else "❌ Not Significant"
+            
             st.table(pd.DataFrame({
-                "Statistical Test": ["Linear Trend (Filtered)"],
-                "Slope": [f"${slope:,.2f}"],
-                "P-Value": [f"{p_val:.4e}"],
-                "Significance": [reg_sig]
+                "Metric": ["Avg MoM Growth", "Revenue Volatility (CV)", "Trend Slope", "Trend Significance (p)"],
+                "Value": [f"{avg_mom:+.1f}%", f"{volatility:.1f}%", f"${slope:,.2f}/mo", f"{p_val:.4e}"],
+                "Status": ["-", "Higher = Less Stable", reg_sig, "p < 0.05 is significant"]
             }))
 
     with c2:
@@ -159,48 +166,28 @@ def show():
 
         if st.session_state.get('advanced_mode'):
             from scipy import stats
-            # ANOVA (Seating Region)
+            # ANOVA (Seating Region Total Spend)
             region_groups = [filtered[filtered['Seating_Region'] == r]['Total_Revenue'] for r in filtered['Seating_Region'].unique()]
             f_stat, f_p = stats.f_oneway(*region_groups)
             f_sig = "✅ Significant" if f_p < 0.05 else "❌ Not Significant"
+            
+            # Chi-Square Independence (Revenue Mix vs Seating Region)
+            # We aggregate the sums of each category by region
+            mix_data = region_rev[['Seating_Region', 'Ticket', 'Merchandise', 'Drink']].set_index('Seating_Region')
+            chi2_mix, p_mix, dof_mix, ex_mix = stats.chi2_contingency(mix_data)
+            mix_sig = "✅ Mix Varies by Tier" if p_mix < 0.05 else "❌ Uniform Mix"
+            
             st.table(pd.DataFrame({
-                "Statistical Test": ["One-Way ANOVA (Seating)"],
-                "F-Stat": [f"{f_stat:.2f}"],
-                "P-Value": [f"{f_p:.4e}"],
-                "Significance": [f_sig]
+                "Test": ["ANOVA (Total Spend)", "Chi2 (Revenue Mix)"],
+                "Stat": [f"F={f_stat:.2f}", f"Chi2={chi2_mix:.2f}"],
+                "P-Value": [f"{f_p:.4e}", f"{p_mix:.4e}"],
+                "Result": [f_sig, mix_sig]
             }))
 
     st.divider()
 
-    # ── Pygwalker Revenue Explorer ──
-    st.subheader("🔍 Revenue Deep Dive Explorer")
-    renderer = StreamlitRenderer(filtered)
+    # Filter for revenue-relevant columns
+    rev_cols = ['Visit_Date', 'Country', 'Seating_Region', 'Total_Revenue', 'Ticket_Revenue', 
+                'Merchandise_Spend', 'Drink_Spend', 'Repeat_Label']
+    renderer = StreamlitRenderer(filtered[rev_cols])
     renderer.explorer()
-
-    if st.session_state.get('advanced_mode'):
-        st.divider()
-        st.subheader("🔬 Advanced Revenue Statistics")
-        from scipy import stats
-        
-        # ANOVA: Total Revenue by Seating Region
-        regions = filtered['Seating_Region'].unique()
-        groups = [filtered[filtered['Seating_Region'] == r]['Total_Revenue'] for r in regions]
-        f_stat, p_val = stats.f_oneway(*groups)
-        sig_text = "significant" if p_val < 0.05 else "not significant"
-        
-        col_adv1, col_adv2 = st.columns(2)
-        with col_adv1:
-            ui.card(
-                title="Regional Spend ANOVA",
-                content=f"F-Statistic: **{f_stat:.2f}** (p={p_val:.4e}). The variance in spend between seating regions is **{sig_text}**.",
-                description="Testing if seating tier pricing affects total spend significantly.",
-                key="rev_adv_1"
-            ).render()
-        with col_adv2:
-            ui.card(
-                title="Market Concentration",
-                content=f"The filtered dataset contains {len(filtered['Country'].unique())} countries. Top 3 markets contribute { (filtered.groupby('Country')['Total_Revenue'].sum().nlargest(3).sum() / filtered['Total_Revenue'].sum() * 100):.1f}% of filtered revenue.",
-                description="Market Share Analysis",
-                key="rev_adv_2"
-            ).render()
-        

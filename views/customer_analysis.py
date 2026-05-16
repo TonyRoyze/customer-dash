@@ -199,33 +199,8 @@ def show():
     # ── Pygwalker Customer Explorer ──
     st.subheader("👥 Customer Segmentation Explorer")
     renderer = StreamlitRenderer(df)
+    # Filter for customer-relevant columns
+    cust_cols = ['Gender', 'Age', 'Age_Group', 'Country', 'Seating_Region', 'Repeat_Visit', 
+                 'Total_Revenue', 'Ticket_Revenue', 'Num_Tickets']
+    renderer = StreamlitRenderer(df[cust_cols])
     renderer.explorer()
-
-    if st.session_state.get('advanced_mode'):
-        st.divider()
-        st.subheader("🔬 Advanced Behavioral Statistics")
-        from scipy import stats
-        
-        # Chi-Square: Gender vs. Repeat Visit
-        contingency = pd.crosstab(df['Gender'], df['Repeat_Visit'])
-        chi2, p_val, dof, ex = stats.chi2_contingency(contingency)
-        sig_text = "dependent (linked)" if p_val < 0.05 else "independent"
-        
-        col_adv1, col_adv2 = st.columns(2)
-        with col_adv1:
-            ui.card(
-                title="Gender vs Loyalty (Chi2)",
-                content=f"Chi2 Stat: **{chi2:.2f}** (p={p_val:.4f}). Gender and Loyalty are statistically **{sig_text}**.",
-                description="Testing if one gender is more likely to be a repeat visitor.",
-                key="cust_adv_1"
-            ).render()
-        with col_adv2:
-            avg_age_repeat = df[df['Repeat_Visit'] == 1]['Age'].mean()
-            avg_age_first = df[df['Repeat_Visit'] == 0]['Age'].mean()
-            diff = avg_age_repeat - avg_age_first
-            ui.card(
-                title="Loyalty Age Delta",
-                content=f"Repeat visitors are, on average, **{abs(diff):.1f} years {'older' if diff > 0 else 'younger'}** than first-time visitors.",
-                description="Age-based Loyalty Analysis",
-                key="cust_adv_2"
-            ).render()

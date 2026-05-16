@@ -94,15 +94,21 @@ def show():
         if st.session_state.get('advanced_mode'):
             from scipy import stats
             import numpy as np
-            # Linear Regression (Monthly Trend)
+            
+            # Time Series Metrics
+            monthly['MoM_Growth'] = monthly['Total_Revenue'].pct_change() * 100
+            avg_mom = monthly['MoM_Growth'].mean()
+            volatility = (monthly['Total_Revenue'].std() / monthly['Total_Revenue'].mean()) * 100
+            
+            # Trend Test
             x_vals = np.arange(len(monthly))
             slope, intercept, r_val, p_val, std_err = stats.linregress(x_vals, monthly['Total_Revenue'])
-            reg_sig = "✅ Significant Trend" if p_val < 0.05 else "❌ No Significant Trend"
+            reg_sig = "✅ Significant" if p_val < 0.05 else "❌ Not Significant"
+            
             st.table(pd.DataFrame({
-                "Test": ["Linear Regression (Revenue)"],
-                "Slope": [f"${slope:,.2f}"],
-                "P-Value": [f"{p_val:.4e}"],
-                "Result": [reg_sig]
+                "Metric": ["Avg MoM Growth", "Revenue Volatility (CV)", "Trend Slope", "Trend Significance (p)"],
+                "Value": [f"{avg_mom:+.1f}%", f"{volatility:.1f}%", f"${slope:,.2f}/mo", f"{p_val:.4e}"],
+                "Status": ["-", "Higher = Less Stable", reg_sig, "p < 0.05 is significant"]
             }))
         
     with col_b:
@@ -219,34 +225,8 @@ def show():
     # ── Pygwalker Temporal Explorer ──
     st.subheader("📅 Temporal Data Explorer")
     st.markdown("Use the explorer below to slice and dice the venue data dynamically.")
-    renderer = StreamlitRenderer(df)
+    # Filter for relevant columns to simplify the explorer
+    time_cols = ['Visit_Date', 'Month_dt', 'Day_of_Week', 'Total_Revenue', 'Ticket_Revenue', 
+                 'Merchandise_Spend', 'Drink_Spend', 'Repeat_Visit', 'Seating_Region', 'Customer_ID']
+    renderer = StreamlitRenderer(df[time_cols])
     renderer.explorer()
-
-    if st.session_state.get('advanced_mode'):
-        st.divider()
-        st.subheader("🔬 Advanced Temporal Statistics")
-        from scipy import stats
-        
-        # T-Test: Weekend vs. Weekday Spend
-        weekend_days = ['Saturday', 'Sunday']
-        weekend_spend = df[df['Day_of_Week'].isin(weekend_days)]['Total_Revenue']
-        weekday_spend = df[~df['Day_of_Week'].isin(weekend_days)]['Total_Revenue']
-        t_stat, p_val = stats.ttest_ind(weekend_spend, weekday_spend)
-        sig_text = "significant" if p_val < 0.05 else "not significant"
-        
-        col_adv1, col_adv2 = st.columns(2)
-        with col_adv1:
-            ui.card(
-                title="Weekend Surge (T-Test)",
-                content=f"T-Stat: **{t_stat:.2f}** (p={p_val:.4f}). The revenue difference between weekends and weekdays is **{sig_text}**.",
-                description="Comparing operational performance by day category.",
-                key="time_adv_1"
-            ).render()
-        with col_adv2:
-            growth = ((monthly['Total_Revenue'].iloc[-1] / monthly['Total_Revenue'].iloc[0]) - 1) * 100
-            ui.card(
-                title="Overall Period Growth",
-                content=f"Total revenue has grown by **{growth:.1f}%** from the first month to the last recorded month in the dataset.",
-                description="Longitudinal Trend Analysis",
-                key="time_adv_2"
-            ).render()

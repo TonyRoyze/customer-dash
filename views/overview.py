@@ -65,14 +65,6 @@ def show():
                 "P-Value": [f"{chi_p:.4e}"],
                 "Significance": [chi_sig]
             }))
-            
-            dominant_cat = rev_data.loc[rev_data['Amount'].idxmax(), 'Category']
-            cat_pct = (rev_data['Amount'].max() / rev_data['Amount'].sum()) * 100
-            st.markdown(f"""
-            <div style='background-color: #f0f2f6; padding: 10px; border-left: 5px solid #118AB2;'>
-                {dominant_cat} accounts for <strong>{cat_pct:.1f}%</strong> of total revenue.
-            </div>
-            """, unsafe_allow_html=True)
 
     with col_right:
         st.markdown("### <i class='bi bi-globe'></i> Revenue by Country", unsafe_allow_html=True)
@@ -101,17 +93,6 @@ def show():
                 "P-Value": [f"{f_p:.4e}"],
                 "Significance": [f_sig]
             }))
-            
-            top_country = country_rev.iloc[-1]
-            bottom_country = country_rev.iloc[0]
-            multiplier = top_country['Total_Revenue'] / bottom_country['Total_Revenue']
-            st.markdown(f"""
-            <div style='background-color: #f0f2f6; padding: 10px; border-left: 5px solid #118AB2;'>
-                Top country ({top_country['Country']}) generates 
-                <strong>{multiplier:.1f}x</strong> more revenue than the lowest tracked market ({bottom_country['Country']}).
-            </div>
-            """, unsafe_allow_html=True)
-
     st.divider()
 
     st.markdown("### <i class='bi bi-graph-up-arrow'></i> Monthly Revenue Trend", unsafe_allow_html=True)
@@ -159,26 +140,30 @@ def show():
     if st.session_state.get('advanced_mode'):
         from scipy import stats
         import numpy as np
-        # Linear Regression Trend Test
+        
+        # Time Series Metrics
+        monthly['MoM_Growth'] = monthly['Total_Revenue'].pct_change() * 100
+        avg_mom = monthly['MoM_Growth'].mean()
+        volatility = (monthly['Total_Revenue'].std() / monthly['Total_Revenue'].mean()) * 100
+        
+        # Trend Test
         x_vals = np.arange(len(monthly))
         slope, intercept, r_value, p_value, std_err = stats.linregress(x_vals, monthly['Total_Revenue'])
-        reg_sig = "✅ Significant Growth/Decline" if p_value < 0.05 else "❌ No Significant Trend"
+        reg_sig = "✅ Significant" if p_value < 0.05 else "❌ Not Significant"
         
         st.table(pd.DataFrame({
-            "Statistical Test": ["Linear Regression (Revenue Trend)"],
-            "Slope (Trend)": [f"${slope:,.2f} / month"],
-            "R-Squared": [f"{r_value**2:.3f}"],
-            "P-Value": [f"{p_value:.4e}"],
-            "Significance": [reg_sig]
+            "Metric": ["Avg MoM Growth", "Revenue Volatility (CV)", "Trend Slope", "Trend Significance (p)"],
+            "Value": [f"{avg_mom:+.1f}%", f"{volatility:.1f}%", f"${slope:,.2f}/mo", f"{p_value:.4e}"],
+            "Status": ["-", "Higher = Less Stable", reg_sig, "p < 0.05 is significant"]
         }))
 
     st.divider()
 
     # ── Pygwalker for Interactive Exploration ──
-    st.subheader("📊 Interactive Data Explorer")
-    st.markdown("Use the explorer below to slice and dice the venue data dynamically.")
-
-    renderer = StreamlitRenderer(df, theme='streamlit')
+    # Filter for overview-relevant columns
+    ov_cols = ['Visit_Date', 'Country', 'Total_Revenue', 'Ticket_Revenue', 'Merchandise_Spend', 
+               'Drink_Spend', 'Satisfaction_Score', 'Repeat_Visit', 'Seating_Region']
+    renderer = StreamlitRenderer(df[ov_cols], theme='streamlit')
     renderer.explorer()
 
     # ── Advanced Insights (Shadcn Alert/Card-like) ──
