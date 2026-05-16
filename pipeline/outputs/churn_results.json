@@ -1,0 +1,158 @@
+{
+  "best_model": "RandomForestClassifier",
+  "selected_features": [
+    "Num_Tickets",
+    "Visit_DayOfWeek",
+    "Country_Japan"
+  ],
+  "all_models": {
+    "LogisticRegression": {
+      "test_f1": 0.4219,
+      "best_cv_f1": 0.4409,
+      "best_params": {
+        "C": 10,
+        "class_weight": "balanced",
+        "max_iter": 1000,
+        "penalty": "l1",
+        "solver": "liblinear"
+      },
+      "classification_report": {
+        "0": {
+          "precision": 0.7375,
+          "recall": 0.5267857142857143,
+          "f1-score": 0.6145833333333334,
+          "support": 112.0
+        },
+        "1": {
+          "precision": 0.3375,
+          "recall": 0.5625,
+          "f1-score": 0.421875,
+          "support": 48.0
+        },
+        "accuracy": 0.5375,
+        "macro avg": {
+          "precision": 0.5375000000000001,
+          "recall": 0.5446428571428572,
+          "f1-score": 0.5182291666666667,
+          "support": 160.0
+        },
+        "weighted avg": {
+          "precision": 0.6175,
+          "recall": 0.5375,
+          "f1-score": 0.5567708333333334,
+          "support": 160.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          59,
+          53
+        ],
+        [
+          21,
+          27
+        ]
+      ]
+    },
+    "RandomForestClassifier": {
+      "test_f1": 0.4426,
+      "best_cv_f1": 0.3897,
+      "best_params": {
+        "class_weight": "balanced",
+        "max_depth": 5,
+        "min_samples_leaf": 2,
+        "min_samples_split": 2,
+        "n_estimators": 200
+      },
+      "classification_report": {
+        "0": {
+          "precision": 0.7558139534883721,
+          "recall": 0.5803571428571429,
+          "f1-score": 0.6565656565656566,
+          "support": 112.0
+        },
+        "1": {
+          "precision": 0.36486486486486486,
+          "recall": 0.5625,
+          "f1-score": 0.4426229508196721,
+          "support": 48.0
+        },
+        "accuracy": 0.575,
+        "macro avg": {
+          "precision": 0.5603394091766185,
+          "recall": 0.5714285714285714,
+          "f1-score": 0.5495943036926644,
+          "support": 160.0
+        },
+        "weighted avg": {
+          "precision": 0.6385292269013199,
+          "recall": 0.575,
+          "f1-score": 0.5923828448418613,
+          "support": 160.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          65,
+          47
+        ],
+        [
+          21,
+          27
+        ]
+      ],
+      "feature_importances": {
+        "Visit_DayOfWeek": 0.0558,
+        "Num_Tickets": 0.0383,
+        "Country_Japan": 0.007
+      }
+    },
+    "GradientBoostingClassifier": {
+      "test_f1": 0.4298,
+      "best_cv_f1": 0.5234,
+      "best_params": {
+        "learning_rate": 0.01,
+        "max_depth": 5,
+        "n_estimators": 200,
+        "subsample": 1.0
+      },
+      "classification_report": {
+        "0": {
+          "precision": 0.7471264367816092,
+          "recall": 0.5803571428571429,
+          "f1-score": 0.6532663316582915,
+          "support": 112.0
+        },
+        "1": {
+          "precision": 0.3561643835616438,
+          "recall": 0.5416666666666666,
+          "f1-score": 0.4297520661157025,
+          "support": 48.0
+        },
+        "accuracy": 0.56875,
+        "macro avg": {
+          "precision": 0.5516454101716265,
+          "recall": 0.5610119047619048,
+          "f1-score": 0.541509198886997,
+          "support": 160.0
+        },
+        "weighted avg": {
+          "precision": 0.6298378208156196,
+          "recall": 0.56875,
+          "f1-score": 0.5862120519955148,
+          "support": 160.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          65,
+          47
+        ],
+        [
+          22,
+          26
+        ]
+      ]
+    }
+  }
+}
