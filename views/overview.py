@@ -4,22 +4,11 @@ import streamlit_shadcn_ui as ui
 import plotly.express as px
 import plotly.graph_objects as go
 from pygwalker.api.streamlit import StreamlitRenderer
-import os
-
-DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'raw.csv')
-
-@st.cache_data
-def load_data():
-    df = pd.read_csv(DATA_PATH)
-    df['Visit_Date'] = pd.to_datetime(df['Visit_Date'])
-    df['Ticket_Revenue'] = df['Ticket_Price'] * df['Num_Tickets']
-    df['Total_Revenue'] = df['Ticket_Revenue'] + df['Merchandise_Spend'] + df['Drink_Spend']
-    df['Month_dt'] = df['Visit_Date'].dt.to_period('M').dt.to_timestamp()
-    df['Repeat_Label'] = df['Repeat_Visit'].map({1: 'Repeat', 0: 'First-Time'})
-    return df
+import utils
 
 def show():
-    df = load_data()
+    df = utils.load_dashboard_data()
+    model_results = utils.get_model_results()
     
     st.header("Executive Overview")
     st.markdown("A modern summary of venue performance and customer metrics.")
@@ -142,13 +131,31 @@ def show():
         t_stat, t_p = stats.ttest_ind(repeat_spend, first_spend)
         t_sig = "significant difference" if t_p < 0.05 else "no significant difference"
         
-        with col_s2:
-            ui.card(
-                title="Loyalty Spend Variance",
-                content=f"T-Statistic: **{t_stat:.2f}** (p={t_p:.4f}). There is **{t_sig}** in spending between repeat and first-time guests.",
-                description="Comparing the economic impact of customer retention.",
-                key="c2"
-            ).render()
+        # 3. Model Health Insights
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.subheader("🔮 Predictive Model Health")
+        m_rev = model_results['revenue']
+        m_churn = model_results['churn']
+        
+        col_m1, col_m2 = st.columns(2)
+        if m_rev:
+            with col_m1:
+                r2 = m_rev['all_models'][m_rev['best_model']]['test_r2']
+                ui.card(
+                    title="Revenue Model Performance",
+                    content=f"R² Score: **{r2:.3f}**",
+                    description=f"Algorithm: {m_rev['best_model']}",
+                    key="overview_m_rev"
+                ).render()
+        if m_churn:
+            with col_m2:
+                f1 = m_churn['all_models'][m_churn['best_model']]['test_f1']
+                ui.card(
+                    title="Churn Model Performance",
+                    content=f"F1 Score: **{f1:.3f}**",
+                    description=f"Algorithm: {m_churn['best_model']}",
+                    key="overview_m_churn"
+                ).render()
 
     st.divider()
 

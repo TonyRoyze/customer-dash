@@ -3,24 +3,11 @@ import pandas as pd
 import plotly.express as px
 import streamlit_shadcn_ui as ui
 from pygwalker.api.streamlit import StreamlitRenderer
-import os
-
-DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'raw.csv')
-
-@st.cache_data
-def load_data():
-    df = pd.read_csv(DATA_PATH)
-    df['Visit_Date'] = pd.to_datetime(df['Visit_Date'])
-    df['Ticket_Revenue'] = df['Ticket_Price'] * df['Num_Tickets']
-    df['Total_Revenue'] = df['Ticket_Revenue'] + df['Merchandise_Spend'] + df['Drink_Spend']
-    df['Repeat_Label'] = df['Repeat_Visit'].map({1: 'Repeat', 0: 'First-Time'})
-    bins = [0, 25, 35, 45, 55, 65, 100]
-    labels = ['18-25', '26-35', '36-45', '46-55', '56-65', '65+']
-    df['Age_Group'] = pd.cut(df['Age'], bins=bins, labels=labels, right=True)
-    return df
+import utils
 
 def show():
-    df = load_data()
+    df = utils.load_dashboard_data()
+    results = utils.load_json_results(utils.CLUSTERING_RESULTS_PATH)
     st.header("Customer Analysis")
     st.markdown("In-depth look at demographics, spending behavior, and customer loyalty.")
 
@@ -92,6 +79,49 @@ def show():
             barmode='stack', title='Regional Volume by Country'
         )
         st.plotly_chart(fig_cr, use_container_width=True)
+
+    st.divider()
+
+    # ── Section 3: AI Segmentation ──
+    st.subheader("🤖 AI-Driven Customer Segmentation")
+    st.markdown("Customers grouped by behavioral patterns using KMeans clustering.")
+
+    if results and 'cluster_profiles' in results:
+        # Segment KPI cards
+        cols = st.columns(len(results['cluster_profiles']))
+        for i, profile in enumerate(results['cluster_profiles']):
+            with cols[i]:
+                ui.card(
+                    title=profile['Business_Label'],
+                    content=f"{profile['Pct']}% of Customers",
+                    description=f"Avg Spend: ${profile['Total_Revenue']:.0f} | {profile['Top_Seating_Region']} Tier",
+                    key=f"seg_card_{i}"
+                ).render()
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Segment Visualization
+        col_s1, col_s2 = st.columns([2, 1])
+        with col_s1:
+            # PCA or behavioral split
+            fig_seg = px.scatter(
+                df, x='Total_Revenue', y='Satisfaction_Score', color='Business_Label',
+                title="Revenue vs Satisfaction by Segment",
+                labels={'Business_Label': 'Segment'},
+                color_discrete_sequence=px.colors.qualitative.Bold
+            )
+            st.plotly_chart(fig_seg, use_container_width=True)
+        
+        with col_s2:
+            seg_counts = df['Business_Label'].value_counts().reset_index()
+            fig_pie = px.pie(
+                seg_counts, values='count', names='Business_Label',
+                hole=0.4, title="Segment Distribution",
+                color_discrete_sequence=px.colors.qualitative.Bold
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
+    else:
+        st.warning("Clustering results not found. Please run the pipeline first.")
 
     st.divider()
 

@@ -3,21 +3,10 @@ import pandas as pd
 import plotly.express as px
 import streamlit_shadcn_ui as ui
 from pygwalker.api.streamlit import StreamlitRenderer
-import os
-
-DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'raw.csv')
-
-@st.cache_data
-def load_data():
-    df = pd.read_csv(DATA_PATH)
-    df['Visit_Date'] = pd.to_datetime(df['Visit_Date'])
-    df['Ticket_Revenue'] = df['Ticket_Price'] * df['Num_Tickets']
-    df['Total_Revenue'] = df['Ticket_Revenue'] + df['Merchandise_Spend'] + df['Drink_Spend']
-    df['Repeat_Label'] = df['Repeat_Visit'].map({1: 'Repeat', 0: 'First-Time'})
-    return df
+import utils
 
 def show():
-    df = load_data()
+    df = utils.load_dashboard_data()
     st.header("Revenue Analysis")
     st.markdown("Detailed breakdown of revenue streams and geographical performance.")
 
