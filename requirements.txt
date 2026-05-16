@@ -6,3 +6,4 @@ streamlit-option-menu
 streamlit-shadcn-ui
 pygwalker
 scipy
+tornado
