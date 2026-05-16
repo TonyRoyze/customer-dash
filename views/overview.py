@@ -201,13 +201,3 @@ def show():
 
     st.divider()
 
-    # ── Searchable Data (Shadcn Table-like) ──
-    st.subheader("📑 Transactional Deep Dive")
-    search_query = st.text_input("Search transactions...", placeholder="Customer ID, Country, Seating...", key="overview_search")
-    
-    table_data = df.sort_values(by="Visit_Date", ascending=False)
-    if search_query:
-        mask = table_data.astype(str).apply(lambda row: row.str.contains(search_query, case=False, na=False).any(), axis=1)
-        table_data = table_data[mask]
-
-    st.dataframe(table_data, use_container_width=True, hide_index=True)
