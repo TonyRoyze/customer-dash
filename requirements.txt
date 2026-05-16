@@ -1,8 +1,9 @@
 plotly
 numpy
 pandas
-streamlit
+streamlit==1.33.0
 streamlit-option-menu
 streamlit-shadcn-ui
 pygwalker
 scipy
+tornado
