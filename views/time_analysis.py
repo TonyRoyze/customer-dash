@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import numpy as np
+import streamlit_shadcn_ui as ui
+from pygwalker.api.streamlit import StreamlitRenderer
 import os
 
 DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'raw.csv')
@@ -13,178 +14,124 @@ def load_data():
     df['Visit_Date'] = pd.to_datetime(df['Visit_Date'])
     df['Ticket_Revenue'] = df['Ticket_Price'] * df['Num_Tickets']
     df['Total_Revenue'] = df['Ticket_Revenue'] + df['Merchandise_Spend'] + df['Drink_Spend']
-    df['Month'] = df['Visit_Date'].dt.to_period('M').astype(str)
     df['Month_dt'] = df['Visit_Date'].dt.to_period('M').dt.to_timestamp()
-    df['Week'] = df['Visit_Date'].dt.isocalendar().week.astype(int)
     df['Day_of_Week'] = df['Visit_Date'].dt.day_name()
-    df['Repeat_Label'] = df['Repeat_Visit'].map({1: 'Repeat', 0: 'First-Time'})
     return df
 
-
 def show():
-    st.markdown("<h1><i class='bi bi-calendar-event'></i> Time-Based Analysis</h1>", unsafe_allow_html=True)
-    st.markdown("Explore revenue trends, visit patterns, and customer behavior over time.")
-
     df = load_data()
+    st.header("Time-Based Analysis")
+    st.markdown("Analyze temporal patterns, seasonality, and visit frequency trends.")
 
-    # ── Monthly KPI Summary ──
+    # ── Monthly Aggregations ──
     monthly = df.groupby('Month_dt').agg(
         Total_Revenue=('Total_Revenue', 'sum'),
         Ticket_Revenue=('Ticket_Revenue', 'sum'),
         Merch_Revenue=('Merchandise_Spend', 'sum'),
         Drink_Revenue=('Drink_Spend', 'sum'),
         Visitors=('Customer_ID', 'count'),
-        Avg_Satisfaction=('Satisfaction_Score', 'mean'),
         Repeat_Visitors=('Repeat_Visit', 'sum')
     ).reset_index().sort_values('Month_dt')
 
-    # Top-level KPIs
-    col1, col2, col3, col4 = st.columns(4)
+    # ── Shadcn KPIs ──
     total_rev = df['Total_Revenue'].sum()
-    total_visitors = len(df)
-    avg_monthly_rev = monthly['Total_Revenue'].mean()
+    total_vis = len(df)
+    avg_month_rev = monthly['Total_Revenue'].mean()
     peak_month = monthly.loc[monthly['Total_Revenue'].idxmax(), 'Month_dt'].strftime('%B %Y')
 
-    col1.metric("Total Revenue", f"${total_rev:,.0f}")
-    col2.metric("Total Visitors", f"{total_visitors:,}")
-    col3.metric("Avg Monthly Revenue", f"${avg_monthly_rev:,.0f}")
-    col4.metric("Peak Revenue Month", peak_month)
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        ui.metric_card(title="Total Revenue", content=f"${total_rev:,.0f}", key="time_m1")
+    with m2:
+        ui.metric_card(title="Total Footfall", content=f"{total_vis:,}", key="time_m2")
+    with m3:
+        ui.metric_card(title="Avg Monthly Rev", content=f"${avg_month_rev:,.0f}", key="time_m3")
+    with m4:
+        ui.metric_card(title="Peak Period", content=peak_month, key="time_m4")
 
     st.divider()
 
-    # ── Row 1: Monthly Revenue Trends ──
-    col_a, col_b = st.columns(2)
+    # ── Monthly Trends ──
+    st.subheader("📈 Temporal Trends")
+    t1, t2 = st.columns(2)
 
-    with col_a:
-        st.markdown("### <i class='bi bi-graph-up-arrow'></i> Monthly Revenue Trend", unsafe_allow_html=True)
+    with t1:
         fig_rev = go.Figure()
         fig_rev.add_trace(go.Scatter(
             x=monthly['Month_dt'], y=monthly['Total_Revenue'],
             mode='lines+markers', name='Total Revenue',
-            line=dict(color='#E63946', width=3),
-            marker=dict(size=8)
+            line=dict(color='#E63946', width=3)
         ))
-        fig_rev.add_trace(go.Scatter(
-            x=monthly['Month_dt'], y=monthly['Ticket_Revenue'],
-            mode='lines+markers', name='Ticket Revenue',
-            line=dict(color='#06D6A0', width=2, dash='dot'),
-            marker=dict(size=6)
-        ))
-        fig_rev.add_trace(go.Scatter(
-            x=monthly['Month_dt'], y=monthly['Merch_Revenue'],
-            mode='lines+markers', name='Merchandise Revenue',
-            line=dict(color='#FFD166', width=2, dash='dash'),
-            marker=dict(size=6)
-        ))
-        fig_rev.add_trace(go.Scatter(
-            x=monthly['Month_dt'], y=monthly['Drink_Revenue'],
-            mode='lines+markers', name='Drink Revenue',
-            line=dict(color='#118AB2', width=2, dash='dashdot'),
-            marker=dict(size=6)
-        ))
-        fig_rev.update_layout(
-            title='Monthly Revenue Breakdown',
-            xaxis_title='Month',
-            yaxis_title='Revenue (USD)',
-            hovermode='x unified',
-            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, title_text='')
-        )
-        st.plotly_chart(fig_rev, width="stretch")
-        
-        
-    with col_b:
-        st.markdown("### <i class='bi bi-people'></i> Monthly Visitor Composition", unsafe_allow_html=True)
+        fig_rev.update_layout(title='Monthly Revenue Breakdown', xaxis_title='Month', yaxis_title='USD')
+        st.plotly_chart(fig_rev, use_container_width=True)
 
-        monthly['First_Time_Visitors'] = monthly['Visitors'] - monthly['Repeat_Visitors']
-        monthly['Repeat_Rate'] = (monthly['Repeat_Visitors'] / monthly['Visitors'] * 100).round(1)
-
+    with t2:
+        monthly['First_Time'] = monthly['Visitors'] - monthly['Repeat_Visitors']
         fig_visitors = go.Figure()
-        # First-Time Visitors (Base)
-        fig_visitors.add_trace(go.Bar(
-            x=monthly['Month_dt'], y=monthly['First_Time_Visitors'],
-            name='First-Time Visitors',
-            marker_color='#E63946',
-            text=monthly['First_Time_Visitors'],
-            textposition='inside'
-        ))
-        # Repeat Visitors (Stacked)
-        fig_visitors.add_trace(go.Bar(
-            x=monthly['Month_dt'], y=monthly['Repeat_Visitors'],
-            name='Repeat Visitors',
-            marker_color='#06D6A0',
-            text=monthly['Repeat_Visitors'],
-            textposition='inside'
-        ))
-
-        fig_visitors.update_layout(
-            barmode='stack',
-            title='Monthly Visitor Volume (Repeat vs. First-Time)',
-            xaxis_title='Month',
-            yaxis_title='Number of Visitors',
-            hovermode='x unified',
-            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, title_text='')
-        )
-        st.plotly_chart(fig_visitors, width="stretch")
-        
-    st.divider()
-
-    st.markdown("### <i class='bi bi-ticket-perforated'></i> Monthly Revenue by Seating Region", unsafe_allow_html=True)
-    monthly_region = df.groupby([df['Visit_Date'].dt.to_period('M').dt.to_timestamp(), 'Seating_Region']).agg(
-        Revenue=('Total_Revenue', 'sum')
-    ).reset_index()
-    monthly_region.columns = ['Month', 'Seating_Region', 'Revenue']
-
-    region_order = ['Economy', 'High Economy', 'Premium', 'VIP']
-    fig_region = px.line(
-        monthly_region, x='Month', y='Revenue',
-        color='Seating_Region',
-        markers=True,
-        title='Revenue Over Time by Seating Region',
-        category_orders={'Seating_Region': region_order},
-        color_discrete_sequence=['#073B4C', '#118AB2', '#FFD166', '#E63946']
-    )
-    fig_region.update_layout(
-        xaxis_title='Month',
-        yaxis_title='Revenue (USD)',
-        hovermode='x unified',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, title_text='')
-    )
-    st.plotly_chart(fig_region, width="stretch")
+        fig_visitors.add_trace(go.Bar(x=monthly['Month_dt'], y=monthly['First_Time'], name='First-Time', marker_color='#E63946'))
+        fig_visitors.add_trace(go.Bar(x=monthly['Month_dt'], y=monthly['Repeat_Visitors'], name='Repeat', marker_color='#06D6A0'))
+        fig_visitors.update_layout(barmode='stack', title='Visitor Composition', xaxis_title='Month')
+        st.plotly_chart(fig_visitors, use_container_width=True)
 
     st.divider()
 
-    # ── Section 4: Day-of-Week Patterns ──
-    st.markdown("### <i class='bi bi-calendar-week'></i> Visit & Revenue Patterns by Day of Week", unsafe_allow_html=True)
-
+    # ── Day of Week Analysis ──
+    st.subheader("🗓️ Day of Week Performance")
     day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     day_stats = df.groupby('Day_of_Week').agg(
         Visits=('Customer_ID', 'count'),
-        Avg_Revenue=('Total_Revenue', 'mean'),
-        Avg_Satisfaction=('Satisfaction_Score', 'mean')
+        Avg_Revenue=('Total_Revenue', 'mean')
     ).reindex(day_order).reset_index()
 
-    col_left, col_right = st.columns(2)
-
-    with col_left:
+    c1, c2 = st.columns(2)
+    with c1:
         fig_day_visits = px.bar(
             day_stats, x='Day_of_Week', y='Visits',
-            color='Visits',
-            color_continuous_scale='Blues',
-            title='Visit Count by Day of Week',
-            text='Visits'
+            color='Visits', color_continuous_scale='Blues',
+            title='Visits by Day'
         )
-        fig_day_visits.update_layout(showlegend=False)
-        fig_day_visits.update_traces(textposition='outside')
-        st.plotly_chart(fig_day_visits, width="stretch")
-
-    with col_right:
+        st.plotly_chart(fig_day_visits, use_container_width=True)
+    with c2:
         fig_day_rev = px.bar(
             day_stats, x='Day_of_Week', y='Avg_Revenue',
-            color='Avg_Revenue',
-            color_continuous_scale='Oranges',
-            title='Avg Revenue per Customer by Day',
-            text=day_stats['Avg_Revenue'].round(0)
+            color='Avg_Revenue', color_continuous_scale='Oranges',
+            title='Avg Revenue by Day'
         )
-        fig_day_rev.update_layout(showlegend=False, yaxis_title='Avg Revenue (USD)')
-        fig_day_rev.update_traces(textposition='outside')
-        st.plotly_chart(fig_day_rev, width="stretch")
+        st.plotly_chart(fig_day_rev, use_container_width=True)
+
+    st.divider()
+
+    # ── Pygwalker Temporal Explorer ──
+    st.subheader("📅 Temporal Data Explorer")
+    st.markdown("Use the explorer below to slice and dice the venue data dynamically.")
+    renderer = StreamlitRenderer(df)
+    renderer.explorer()
+
+    if st.session_state.get('advanced_mode'):
+        st.divider()
+        st.subheader("🔬 Advanced Temporal Statistics")
+        from scipy import stats
+        
+        # T-Test: Weekend vs. Weekday Spend
+        weekend_days = ['Saturday', 'Sunday']
+        weekend_spend = df[df['Day_of_Week'].isin(weekend_days)]['Total_Revenue']
+        weekday_spend = df[~df['Day_of_Week'].isin(weekend_days)]['Total_Revenue']
+        t_stat, p_val = stats.ttest_ind(weekend_spend, weekday_spend)
+        sig_text = "significant" if p_val < 0.05 else "not significant"
+        
+        col_adv1, col_adv2 = st.columns(2)
+        with col_adv1:
+            ui.card(
+                title="Weekend Surge (T-Test)",
+                content=f"T-Stat: **{t_stat:.2f}** (p={p_val:.4f}). The revenue difference between weekends and weekdays is **{sig_text}**.",
+                description="Comparing operational performance by day category.",
+                key="time_adv_1"
+            ).render()
+        with col_adv2:
+            growth = ((monthly['Total_Revenue'].iloc[-1] / monthly['Total_Revenue'].iloc[0]) - 1) * 100
+            ui.card(
+                title="Overall Period Growth",
+                content=f"Total revenue has grown by **{growth:.1f}%** from the first month to the last recorded month in the dataset.",
+                description="Longitudinal Trend Analysis",
+                key="time_adv_2"
+            ).render()

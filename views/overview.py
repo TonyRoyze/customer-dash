@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
+import streamlit_shadcn_ui as ui
 import plotly.express as px
 import plotly.graph_objects as go
+from pygwalker.api.streamlit import StreamlitRenderer
 import os
 
 DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'raw.csv')
@@ -16,50 +18,35 @@ def load_data():
     df['Repeat_Label'] = df['Repeat_Visit'].map({1: 'Repeat', 0: 'First-Time'})
     return df
 
-
 def show():
-    st.markdown("<h1><i class='bi bi-speedometer2'></i> Executive Overview</h1>", unsafe_allow_html=True)
-    st.markdown("A high-level summary of venue performance, revenue, and customer experience.")
-
     df = load_data()
     
-    # Calculate monthly trends for the overview chart
-    monthly = df.groupby('Month_dt').agg(
-        Total_Revenue=('Total_Revenue', 'sum'),
-        Ticket_Revenue=('Ticket_Revenue', 'sum'),
-        Merch_Revenue=('Merchandise_Spend', 'sum'),
-        Drink_Revenue=('Drink_Spend', 'sum')
-    ).reset_index().sort_values('Month_dt')
+    st.header("Executive Overview")
+    st.markdown("A modern summary of venue performance and customer metrics.")
 
-    # ── Row 1: Core KPIs (from challenge C. Measures and KPIs) ──
-    st.markdown("### <i class='bi bi-key'></i> Key Performance Indicators", unsafe_allow_html=True)
-    k1, k2, k3, k4 = st.columns(4)
-
+    # ── Shadcn Metric Cards ──
     total_ticket_rev = df['Ticket_Revenue'].sum()
     total_merch_rev = df['Merchandise_Spend'].sum()
     total_drink_rev = df['Drink_Spend'].sum()
-    total_revenue = df['Total_Revenue'].sum()
-
-    k1.metric("Total Ticket Revenue", f"${total_ticket_rev:,.0f}")
-    k2.metric("Total Merchandise Revenue", f"${total_merch_rev:,.0f}")
-    k3.metric("Total Drink Revenue", f"${total_drink_rev:,.0f}")
-    k4.metric("Total Revenue", f"${total_revenue:,.0f}")
-
-    k5, k6, k7, k8 = st.columns(4)
-
+    total_rev = df['Total_Revenue'].sum()
+    
     avg_spend = df['Total_Revenue'].mean()
     repeat_rate = df['Repeat_Visit'].mean() * 100
-    avg_satisfaction = df['Satisfaction_Score'].mean()
-    avg_recommendation = df['Recommendation_Likelihood'].mean()
+    avg_sat = df['Satisfaction_Score'].mean()
 
-    k5.metric("Avg Spend per Customer", f"${avg_spend:,.2f}")
-    k6.metric("Repeat Visit Rate", f"{repeat_rate:.1f}%")
-    k7.metric("Avg Satisfaction Score", f"{avg_satisfaction:.1f} / 10")
-    k8.metric("Avg Recommendation", f"{avg_recommendation:.1f} / 10")
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        ui.metric_card(title="Total Revenue", content=f"${total_rev:,.0f}", description="Cumulative venue earnings", key="m1")
+    with m2:
+        ui.metric_card(title="Avg Customer Spend", content=f"${avg_spend:,.2f}", description="Per transaction average", key="m2")
+    with m3:
+        ui.metric_card(title="Repeat Visit Rate", content=f"{repeat_rate:.1f}%", description="Loyalty metric", key="m3")
+    with m4:
+        ui.metric_card(title="Avg Satisfaction", content=f"{avg_sat:.1f}/10", description="Customer feedback score", key="m4")
 
     st.divider()
 
-    # ── Row 2: Revenue Breakdown Donut + Top Countries Bar ──
+    # ── Original Plotly Charts ──
     col_left, col_right = st.columns(2)
 
     with col_left:
@@ -75,16 +62,7 @@ def show():
         )
         fig_donut.update_traces(textposition='inside', textinfo='percent+label')
         fig_donut.update_layout(showlegend=False, margin=dict(t=20, b=20))
-        st.plotly_chart(fig_donut, width="stretch")
-        
-        if st.session_state.get('advanced_mode'):
-            dominant_cat = rev_data.loc[rev_data['Amount'].idxmax(), 'Category']
-            cat_pct = (rev_data['Amount'].max() / rev_data['Amount'].sum()) * 100
-            st.markdown(f"""
-            <div style='background-color: #f0f2f6; padding: 10px; border-left: 5px solid #118AB2;'>
-                {dominant_cat} accounts for <strong>{cat_pct:.1f}%</strong> of total revenue.
-            </div>
-            """, unsafe_allow_html=True)
+        st.plotly_chart(fig_donut, use_container_width=True)
 
     with col_right:
         st.markdown("### <i class='bi bi-globe'></i> Revenue by Country", unsafe_allow_html=True)
@@ -98,22 +76,18 @@ def show():
         )
         fig_country.update_layout(showlegend=False, margin=dict(t=20, b=20), yaxis_title='', xaxis_title='Revenue (USD)')
         fig_country.update_traces(textposition='outside')
-        st.plotly_chart(fig_country, width="stretch")
-        
-        if st.session_state.get('advanced_mode'):
-            top_country = country_rev.iloc[-1]
-            bottom_country = country_rev.iloc[0]
-            multiplier = top_country['Total_Revenue'] / bottom_country['Total_Revenue']
-            st.markdown(f"""
-            <div style='background-color: #f0f2f6; padding: 10px; border-left: 5px solid #118AB2;'>
-                Top country ({top_country['Country']}) generates 
-                <strong>{multiplier:.1f}x</strong> more revenue than the lowest tracked market ({bottom_country['Country']}).
-            </div>
-            """, unsafe_allow_html=True)
+        st.plotly_chart(fig_country, use_container_width=True)
 
     st.divider()
 
     st.markdown("### <i class='bi bi-graph-up-arrow'></i> Monthly Revenue Trend", unsafe_allow_html=True)
+    monthly = df.groupby('Month_dt').agg(
+        Total_Revenue=('Total_Revenue', 'sum'),
+        Ticket_Revenue=('Ticket_Revenue', 'sum'),
+        Merch_Revenue=('Merchandise_Spend', 'sum'),
+        Drink_Revenue=('Drink_Spend', 'sum')
+    ).reset_index().sort_values('Month_dt')
+
     fig_rev = go.Figure()
     fig_rev.add_trace(go.Scatter(
         x=monthly['Month_dt'], y=monthly['Total_Revenue'],
@@ -127,38 +101,64 @@ def show():
         line=dict(color='#06D6A0', width=2, dash='dot'),
         marker=dict(size=6)
     ))
-    fig_rev.add_trace(go.Scatter(
-        x=monthly['Month_dt'], y=monthly['Merch_Revenue'],
-        mode='lines+markers', name='Merchandise Revenue',
-        line=dict(color='#FFD166', width=2, dash='dash'),
-        marker=dict(size=6)
-    ))
-    fig_rev.add_trace(go.Scatter(
-        x=monthly['Month_dt'], y=monthly['Drink_Revenue'],
-        mode='lines+markers', name='Drink Revenue',
-        line=dict(color='#118AB2', width=2, dash='dashdot'),
-        marker=dict(size=6)
-    ))
     fig_rev.update_layout(
-        title='Monthly Revenue Breakdown',
-        xaxis_title='Month',
-        yaxis_title='Revenue (USD)',
+        xaxis_title='Month', yaxis_title='Revenue (USD)',
         hovermode='x unified',
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, title_text='')
     )
-    st.plotly_chart(fig_rev, width="stretch")
+    st.plotly_chart(fig_rev, use_container_width=True)
 
     st.divider()
 
+    # ── Pygwalker for Interactive Exploration ──
+    st.subheader("📊 Interactive Data Explorer")
+    st.markdown("Use the explorer below to slice and dice the venue data dynamically.")
+    
+    renderer = StreamlitRenderer(df)
+    renderer.explorer()
 
-    # ── Row 3: Searchable Data Table ──
-    st.markdown("### <i class='bi bi-list-ul'></i> Transactions", unsafe_allow_html=True)
-    search_query = st.text_input("Search across all columns", placeholder="e.g. CUST_0001, VIP, Australia...", key="overview_search")
+    # ── Advanced Insights (Shadcn Alert/Card-like) ──
+    if st.session_state.get('advanced_mode'):
+        st.subheader("🔬 Advanced Statistical Insights")
+        from scipy import stats
+        
+        col_s1, col_s2 = st.columns(2)
+        
+        # 1. Correlation Test: Satisfaction vs. Spend
+        corr, p_val = stats.pearsonr(df['Satisfaction_Score'], df['Total_Revenue'])
+        sig_text = "statistically significant" if p_val < 0.05 else "not statistically significant"
+        
+        with col_s1:
+            ui.card(
+                title="Satisfaction-Spend Correlation",
+                content=f"Pearson Correlation: **{corr:.3f}** (p={p_val:.4f}). This relationship is **{sig_text}**.",
+                description="Analysis of how customer feedback relates to monetary value.",
+                key="c1"
+            ).render()
+            
+        # 2. T-Test: Repeat vs First-Time Spend
+        repeat_spend = df[df['Repeat_Visit'] == 1]['Total_Revenue']
+        first_spend = df[df['Repeat_Visit'] == 0]['Total_Revenue']
+        t_stat, t_p = stats.ttest_ind(repeat_spend, first_spend)
+        t_sig = "significant difference" if t_p < 0.05 else "no significant difference"
+        
+        with col_s2:
+            ui.card(
+                title="Loyalty Spend Variance",
+                content=f"T-Statistic: **{t_stat:.2f}** (p={t_p:.4f}). There is **{t_sig}** in spending between repeat and first-time guests.",
+                description="Comparing the economic impact of customer retention.",
+                key="c2"
+            ).render()
 
+    st.divider()
+
+    # ── Searchable Data (Shadcn Table-like) ──
+    st.subheader("📑 Transactional Deep Dive")
+    search_query = st.text_input("Search transactions...", placeholder="Customer ID, Country, Seating...", key="overview_search")
+    
     table_data = df.sort_values(by="Visit_Date", ascending=False)
     if search_query:
         mask = table_data.astype(str).apply(lambda row: row.str.contains(search_query, case=False, na=False).any(), axis=1)
         table_data = table_data[mask]
 
-    st.caption(f"Showing **{len(table_data):,}** of {len(df):,} records")
-    st.dataframe(table_data, width="stretch", hide_index=True)
+    st.dataframe(table_data, use_container_width=True, hide_index=True)
