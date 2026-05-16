@@ -46,7 +46,7 @@ def show():
 
     st.divider()
 
-    # ── Original Plotly Charts ──
+    # ── Row 2: Revenue Breakdown Donut + Top Countries Bar ──
     col_left, col_right = st.columns(2)
 
     with col_left:
@@ -63,6 +63,27 @@ def show():
         fig_donut.update_traces(textposition='inside', textinfo='percent+label')
         fig_donut.update_layout(showlegend=False, margin=dict(t=20, b=20))
         st.plotly_chart(fig_donut, use_container_width=True)
+        
+        if st.session_state.get('advanced_mode'):
+            from scipy import stats
+            # Chi-Square Goodness of Fit (Is there a significant difference between revenue streams?)
+            chi_stat, chi_p = stats.chisquare(rev_data['Amount'])
+            chi_sig = "✅ Significant" if chi_p < 0.05 else "❌ Not Significant"
+            
+            st.table(pd.DataFrame({
+                "Statistical Test": ["Chi-Square Goodness of Fit"],
+                "Statistic": [f"{chi_stat:.2f}"],
+                "P-Value": [f"{chi_p:.4e}"],
+                "Significance": [chi_sig]
+            }))
+            
+            dominant_cat = rev_data.loc[rev_data['Amount'].idxmax(), 'Category']
+            cat_pct = (rev_data['Amount'].max() / rev_data['Amount'].sum()) * 100
+            st.markdown(f"""
+            <div style='background-color: #f0f2f6; padding: 10px; border-left: 5px solid #118AB2;'>
+                {dominant_cat} accounts for <strong>{cat_pct:.1f}%</strong> of total revenue.
+            </div>
+            """, unsafe_allow_html=True)
 
     with col_right:
         st.markdown("### <i class='bi bi-globe'></i> Revenue by Country", unsafe_allow_html=True)
@@ -77,6 +98,30 @@ def show():
         fig_country.update_layout(showlegend=False, margin=dict(t=20, b=20), yaxis_title='', xaxis_title='Revenue (USD)')
         fig_country.update_traces(textposition='outside')
         st.plotly_chart(fig_country, use_container_width=True)
+        
+        if st.session_state.get('advanced_mode'):
+            from scipy import stats
+            # ANOVA (Is there a significant difference in revenue across countries?)
+            country_groups = [df[df['Country'] == c]['Total_Revenue'] for c in df['Country'].unique()]
+            f_stat, f_p = stats.f_oneway(*country_groups)
+            f_sig = "✅ Significant" if f_p < 0.05 else "❌ Not Significant"
+            
+            st.table(pd.DataFrame({
+                "Statistical Test": ["One-Way ANOVA (Country)"],
+                "Statistic": [f"{f_stat:.2f}"],
+                "P-Value": [f"{f_p:.4e}"],
+                "Significance": [f_sig]
+            }))
+            
+            top_country = country_rev.iloc[-1]
+            bottom_country = country_rev.iloc[0]
+            multiplier = top_country['Total_Revenue'] / bottom_country['Total_Revenue']
+            st.markdown(f"""
+            <div style='background-color: #f0f2f6; padding: 10px; border-left: 5px solid #118AB2;'>
+                Top country ({top_country['Country']}) generates 
+                <strong>{multiplier:.1f}x</strong> more revenue than the lowest tracked market ({bottom_country['Country']}).
+            </div>
+            """, unsafe_allow_html=True)
 
     st.divider()
 
@@ -101,64 +146,48 @@ def show():
         line=dict(color='#06D6A0', width=2, dash='dot'),
         marker=dict(size=6)
     ))
+    fig_rev.add_trace(go.Scatter(
+        x=monthly['Month_dt'], y=monthly['Merch_Revenue'],
+        mode='lines+markers', name='Merchandise Revenue',
+        line=dict(color='#FFD166', width=2, dash='dash'),
+        marker=dict(size=6)
+    ))
+    fig_rev.add_trace(go.Scatter(
+        x=monthly['Month_dt'], y=monthly['Drink_Revenue'],
+        mode='lines+markers', name='Drink Revenue',
+        line=dict(color='#118AB2', width=2, dash='dashdot'),
+        marker=dict(size=6)
+    ))
     fig_rev.update_layout(
-        xaxis_title='Month', yaxis_title='Revenue (USD)',
+        title='Monthly Revenue Breakdown',
+        xaxis_title='Month',
+        yaxis_title='Revenue (USD)',
         hovermode='x unified',
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, title_text='')
     )
     st.plotly_chart(fig_rev, use_container_width=True)
+
+    if st.session_state.get('advanced_mode'):
+        from scipy import stats
+        import numpy as np
+        # Linear Regression Trend Test
+        x_vals = np.arange(len(monthly))
+        slope, intercept, r_value, p_value, std_err = stats.linregress(x_vals, monthly['Total_Revenue'])
+        reg_sig = "✅ Significant Growth/Decline" if p_value < 0.05 else "❌ No Significant Trend"
+        
+        st.table(pd.DataFrame({
+            "Statistical Test": ["Linear Regression (Revenue Trend)"],
+            "Slope (Trend)": [f"${slope:,.2f} / month"],
+            "R-Squared": [f"{r_value**2:.3f}"],
+            "P-Value": [f"{p_value:.4e}"],
+            "Significance": [reg_sig]
+        }))
 
     st.divider()
 
     # ── Pygwalker for Interactive Exploration ──
     st.subheader("📊 Interactive Data Explorer")
     st.markdown("Use the explorer below to slice and dice the venue data dynamically.")
-    
-    renderer = StreamlitRenderer(df)
+
+    renderer = StreamlitRenderer(df, theme='streamlit')
     renderer.explorer()
-
-    # ── Advanced Insights (Shadcn Alert/Card-like) ──
-    if st.session_state.get('advanced_mode'):
-        st.subheader("🔬 Advanced Statistical Insights")
-        from scipy import stats
-        
-        col_s1, col_s2 = st.columns(2)
-        
-        # 1. Correlation Test: Satisfaction vs. Spend
-        corr, p_val = stats.pearsonr(df['Satisfaction_Score'], df['Total_Revenue'])
-        sig_text = "statistically significant" if p_val < 0.05 else "not statistically significant"
-        
-        with col_s1:
-            ui.card(
-                title="Satisfaction-Spend Correlation",
-                content=f"Pearson Correlation: **{corr:.3f}** (p={p_val:.4f}). This relationship is **{sig_text}**.",
-                description="Analysis of how customer feedback relates to monetary value.",
-                key="c1"
-            ).render()
-            
-        # 2. T-Test: Repeat vs First-Time Spend
-        repeat_spend = df[df['Repeat_Visit'] == 1]['Total_Revenue']
-        first_spend = df[df['Repeat_Visit'] == 0]['Total_Revenue']
-        t_stat, t_p = stats.ttest_ind(repeat_spend, first_spend)
-        t_sig = "significant difference" if t_p < 0.05 else "no significant difference"
-        
-        with col_s2:
-            ui.card(
-                title="Loyalty Spend Variance",
-                content=f"T-Statistic: **{t_stat:.2f}** (p={t_p:.4f}). There is **{t_sig}** in spending between repeat and first-time guests.",
-                description="Comparing the economic impact of customer retention.",
-                key="c2"
-            ).render()
-
-    st.divider()
-
-    # ── Searchable Data (Shadcn Table-like) ──
-    st.subheader("📑 Transactional Deep Dive")
-    search_query = st.text_input("Search transactions...", placeholder="Customer ID, Country, Seating...", key="overview_search")
-    
-    table_data = df.sort_values(by="Visit_Date", ascending=False)
-    if search_query:
-        mask = table_data.astype(str).apply(lambda row: row.str.contains(search_query, case=False, na=False).any(), axis=1)
-        table_data = table_data[mask]
-
-    st.dataframe(table_data, use_container_width=True, hide_index=True)

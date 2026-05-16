@@ -54,29 +54,78 @@ def show():
     c1, c2 = st.columns(2)
 
     with c1:
+        # ── Section 1: Revenue by Visit Date ──
+        st.markdown("### <i class='bi bi-calendar3'></i> Revenue Over Time", unsafe_allow_html=True)
+
         monthly_rev = filtered.groupby(filtered['Visit_Date'].dt.to_period('M').dt.to_timestamp()).agg(
             Ticket=('Ticket_Revenue', 'sum'),
             Merchandise=('Merchandise_Spend', 'sum'),
             Drink=('Drink_Spend', 'sum')
         ).reset_index()
         monthly_rev.columns = ['Month', 'Ticket', 'Merchandise', 'Drink']
-        
+
         fig_timeline = px.area(
             monthly_rev, x='Month', y=['Ticket', 'Merchandise', 'Drink'],
             color_discrete_sequence=['#E63946', '#FFD166', '#118AB2'],
-            title='Revenue Trend'
+            title='Monthly Revenue Breakdown (Stacked Area)'
+        )
+        fig_timeline.update_layout(
+            xaxis_title='Month', yaxis_title='Revenue (USD)',
+            hovermode='x unified',
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, title_text='')
         )
         st.plotly_chart(fig_timeline, use_container_width=True)
+        
+        if st.session_state.get('advanced_mode'):
+            from scipy import stats
+            import numpy as np
+            # Trend Test
+            x_vals = np.arange(len(monthly_rev))
+            y_vals = monthly_rev['Ticket'] + monthly_rev['Merchandise'] + monthly_rev['Drink']
+            slope, intercept, r_val, p_val, stderr = stats.linregress(x_vals, y_vals)
+            reg_sig = "✅ Significant Trend" if p_val < 0.05 else "❌ No Significant Trend"
+            st.table(pd.DataFrame({
+                "Statistical Test": ["Linear Trend (Filtered)"],
+                "Slope": [f"${slope:,.2f}"],
+                "P-Value": [f"{p_val:.4e}"],
+                "Significance": [reg_sig]
+            }))
 
     with c2:
-        country_rev = filtered.groupby('Country')['Total_Revenue'].sum().sort_values(ascending=False).head(10).reset_index()
+        # ── Section 2: Revenue by Country ──
+        st.markdown("### <i class='bi bi-globe'></i> Revenue by Country", unsafe_allow_html=True)
+        country_rev = filtered.groupby('Country').agg(
+            Ticket=('Ticket_Revenue', 'sum'),
+            Merchandise=('Merchandise_Spend', 'sum'),
+            Drink=('Drink_Spend', 'sum'),
+            Total=('Total_Revenue', 'sum')
+        ).sort_values('Total', ascending=False).reset_index()
+
         fig_country = px.bar(
-            country_rev, x='Total_Revenue', y='Country',
-            orientation='h', color='Total_Revenue',
-            color_continuous_scale='Viridis',
-            title='Top 10 Markets'
+            country_rev, x='Country', y=['Ticket', 'Merchandise', 'Drink'],
+            barmode='stack',
+            color_discrete_sequence=['#E63946', '#FFD166', '#118AB2'],
+            title='Revenue Breakdown by Country',
+            labels={'value': 'Revenue (USD)', 'variable': ''}
+        )
+        fig_country.update_layout(
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, title_text='')
         )
         st.plotly_chart(fig_country, use_container_width=True)
+
+        if st.session_state.get('advanced_mode'):
+            from scipy import stats
+            # ANOVA (Country)
+            country_groups = [filtered[filtered['Country'] == c]['Total_Revenue'] for c in filtered['Country'].unique()]
+            if len(country_groups) > 1:
+                f_stat, f_p = stats.f_oneway(*country_groups)
+                f_sig = "✅ Significant" if f_p < 0.05 else "❌ Not Significant"
+                st.table(pd.DataFrame({
+                    "Statistical Test": ["One-Way ANOVA (Market)"],
+                    "F-Stat": [f"{f_stat:.2f}"],
+                    "P-Value": [f"{f_p:.4e}"],
+                    "Significance": [f_sig]
+                }))
 
     st.divider()
 
@@ -89,6 +138,7 @@ def show():
         Merchandise=('Merchandise_Spend', 'sum'),
         Drink=('Drink_Spend', 'sum'),
         Total=('Total_Revenue', 'sum'),
+        Customers=('Customer_ID', 'count'),
         Avg_Spend=('Total_Revenue', 'mean')
     ).reindex(region_order).dropna(subset=['Total']).reset_index()
 
@@ -98,16 +148,38 @@ def show():
             region_rev, x='Seating_Region', y=['Ticket', 'Merchandise', 'Drink'],
             barmode='stack',
             color_discrete_sequence=['#E63946', '#FFD166', '#118AB2'],
-            title='Revenue Split by Region'
+            title='Stacked Revenue by Seating Region'
+        )
+        fig_region_stack.update_layout(
+            xaxis_title='Seating Region', yaxis_title='Revenue (USD)',
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, title_text='')
         )
         st.plotly_chart(fig_region_stack, use_container_width=True)
+        
     with cr2:
         fig_avg_spend = px.bar(
             region_rev, x='Seating_Region', y='Avg_Spend',
-            color='Avg_Spend', color_continuous_scale='Bluered',
-            title='Avg Spend per Customer'
+            color='Avg_Spend',
+            color_continuous_scale='Bluered',
+            title='Avg Spend per Customer by Seating Region',
+            text=region_rev['Avg_Spend'].round(0).fillna(0).astype(int)
         )
+        fig_avg_spend.update_layout(showlegend=False, yaxis_title='Avg Spend (USD)')
+        fig_avg_spend.update_traces(textposition='outside')
         st.plotly_chart(fig_avg_spend, use_container_width=True)
+
+        if st.session_state.get('advanced_mode'):
+            from scipy import stats
+            # ANOVA (Seating Region)
+            region_groups = [filtered[filtered['Seating_Region'] == r]['Total_Revenue'] for r in filtered['Seating_Region'].unique()]
+            f_stat, f_p = stats.f_oneway(*region_groups)
+            f_sig = "✅ Significant" if f_p < 0.05 else "❌ Not Significant"
+            st.table(pd.DataFrame({
+                "Statistical Test": ["One-Way ANOVA (Seating)"],
+                "F-Stat": [f"{f_stat:.2f}"],
+                "P-Value": [f"{f_p:.4e}"],
+                "Significance": [f_sig]
+            }))
 
     st.divider()
 

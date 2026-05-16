@@ -69,6 +69,19 @@ def show():
         fig_sat.update_traces(textposition='outside')
         st.plotly_chart(fig_sat, width="stretch")
 
+        if st.session_state.get('advanced_mode'):
+            from scipy import stats
+            # ANOVA (Satisfaction by Segment)
+            seg_groups = [df[df[segment_col] == s]['Satisfaction_Score'] for s in df[segment_col].unique()]
+            f_stat, f_p = stats.f_oneway(*seg_groups)
+            f_sig = "✅ Significant" if f_p < 0.05 else "❌ Not Significant"
+            st.table(pd.DataFrame({
+                "Test": [f"ANOVA ({segment_col})"],
+                "F-Stat": [f"{f_stat:.2f}"],
+                "P-Value": [f"{f_p:.4e}"],
+                "Result": [f_sig]
+            }))
+
     with col_right:
         fig_rec = px.bar(
             seg_stats, x=segment_col, y='Avg_Recommendation',
@@ -80,6 +93,19 @@ def show():
         fig_rec.update_layout(showlegend=False, yaxis_range=[0, 10])
         fig_rec.update_traces(textposition='outside')
         st.plotly_chart(fig_rec, width="stretch")
+
+        if st.session_state.get('advanced_mode'):
+            from scipy import stats
+            # ANOVA (Recommendation by Segment)
+            seg_groups_rec = [df[df[segment_col] == s]['Recommendation_Likelihood'] for s in df[segment_col].unique()]
+            f_stat_r, f_p_r = stats.f_oneway(*seg_groups_rec)
+            f_sig_r = "✅ Significant" if f_p_r < 0.05 else "❌ Not Significant"
+            st.table(pd.DataFrame({
+                "Test": [f"ANOVA ({segment_col})"],
+                "F-Stat": [f"{f_stat_r:.2f}"],
+                "P-Value": [f"{f_p_r:.4e}"],
+                "Result": [f_sig_r]
+            }))
 
     st.divider()
 
@@ -121,6 +147,21 @@ def show():
         fig_repeat.update_traces(textposition='outside')
         st.plotly_chart(fig_repeat, width="stretch")
 
+        if st.session_state.get('advanced_mode'):
+            from scipy import stats
+            # T-Test (Repeat vs First-Time Satisfaction)
+            sat_rep = df[df['Repeat_Visit'] == 1]['Satisfaction_Score']
+            sat_first = df[df['Repeat_Visit'] == 0]['Satisfaction_Score']
+            t_s, t_p = stats.ttest_ind(sat_rep, sat_first)
+            t_sig = "✅ Significant" if t_p < 0.05 else "❌ Not Significant"
+            st.table(pd.DataFrame({
+                "Test": ["T-Test (Loyalty Sat)"],
+                "T-Stat": [f"{t_s:.2f}"],
+                "P-Value": [f"{t_p:.4e}"],
+                "Result": [t_sig]
+            }))
+            
+
     with col_b:
         fig_spend_repeat = go.Figure()
         fig_spend_repeat.add_trace(go.Bar(
@@ -136,6 +177,20 @@ def show():
         )
         fig_spend_repeat.update_traces(textposition='outside')
         st.plotly_chart(fig_spend_repeat, width="stretch")
+
+        if st.session_state.get('advanced_mode'):
+            from scipy import stats
+            # T-Test (Repeat vs First-Time Spend)
+            spd_rep = df[df['Repeat_Visit'] == 1]['Total_Spend']
+            spd_first = df[df['Repeat_Visit'] == 0]['Total_Spend']
+            t_s_sp, t_p_sp = stats.ttest_ind(spd_rep, spd_first)
+            t_sig_sp = "✅ Significant" if t_p_sp < 0.05 else "❌ Not Significant"
+            st.table(pd.DataFrame({
+                "Test": ["T-Test (Loyalty Spend)"],
+                "T-Stat": [f"{t_s_sp:.2f}"],
+                "P-Value": [f"{t_p_sp:.4e}"],
+                "Result": [t_sig_sp]
+            }))
 
     st.divider()
 
